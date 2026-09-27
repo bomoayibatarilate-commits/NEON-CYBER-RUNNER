@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CYBER SURGE - Neon Cyber Runner</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+
+    <style>
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #03020a;
+            color: #ffffff;
+            overflow: hidden;
+        }
+
+        .font-orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        /* Neon Glow Effects */
+        .glow-cyan {
+            text-shadow: 0 0 10px rgba(6, 182, 212, 0.8), 0 0 20px rgba(6, 182, 212, 0.4);
+        }
+        .glow-pink {
+            text-shadow: 0 0 10px rgba(236, 72, 153, 0.8), 0 0 20px rgba(236, 72, 153, 0.4);
+        }
+        .glow-yellow {
+            text-shadow: 0 0 10px rgba(234, 179, 8, 0.8), 0 0 20px rgba(234, 179, 8, 0.4);
+        }
+
+        .box-glow-cyan {
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.4), inset 0 0 15px rgba(6, 182, 212, 0.2);
+            border: 1px solid rgba(6, 182, 212, 0.6);
+        }
+
+        .box-glow-pink {
+            box-shadow: 0 0 25px rgba(236, 72, 153, 0.5), inset 0 0 15px rgba(236, 72, 153, 0.2);
+            border: 1px solid rgba(236, 72, 153, 0.7);
+        }
+
+        .btn-neon-pink {
+            background: linear-gradient(135deg, #ec4899 0%, #be185d 100%);
+            box-shadow: 0 0 15px rgba(236, 72, 153, 0.6);
+            transition: all 0.2s ease;
+        }
+        .btn-neon-pink:hover {
+            box-shadow: 0 0 25px rgba(236, 72, 153, 0.9);
+            transform: translateY(-2px);
+        }
+        .btn-neon-pink:active {
+            transform: translateY(1px);
+        }
+
+        /* CRT Scanline Retro FX */
+        .scanline {
+            background: linear-gradient(
+                to bottom,
+                rgba(255,255,255,0),
+                rgba(255,255,255,0) 50%,
+                rgba(0, 0, 0, 0.35) 50%,
+                rgba(0, 0, 0, 0.35)
+            );
+            background-size: 100% 4px;
+        }
+
+        #gameCanvas {
+            border-radius: 16px;
+            background: radial-gradient(circle at center, #0e0926 0%, #03020a 100%);
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col justify-between items-center p-2 sm:p-4 select-none relative overflow-hidden">
+
+    <!-- Retro CRT Overlay -->
+    <div class="absolute inset-0 scanline pointer-events-none z-10"></div>
+
+    <!-- Top HUD / Bar Header -->
+    <header class="w-full max-w-4xl flex justify-between items-center z-20 px-2 py-1">
+        <div class="flex items-center gap-2">
+            <i class="fa-solid fa-bolt text-pink-500 text-2xl animate-pulse"></i>
+            <h1 class="text-xl sm:text-2xl font-black font-orbitron tracking-wider glow-pink italic">CYBER<span class="text-cyan-400 glow-cyan">SURGE</span></h1>
+        </div>
+
+        <div id="hud" class="flex gap-4 sm:gap-8 font-orbitron text-xs sm:text-sm">
+            <div class="text-gray-400">SCORE: <span id="hudScore" class="text-cyan-400 font-bold glow-cyan">0</span></div>
+            <div class="text-gray-400">HIGH: <span id="hudHighScore" class="text-yellow-400 font-bold glow-yellow">0</span></div>
+            <div class="text-gray-400">MULT: <span id="hudMultiplier" class="text-pink-500 font-bold glow-pink">x1.0</span></div>
+        </div>
+    </header>
+
+    <!-- Main Canvas Viewport Container -->
+    <main class="relative w-full max-w-4xl flex-1 flex items-center justify-center my-2 z-20">
+        <canvas id="gameCanvas" class="w-full h-full max-h-[75vh] object-contain box-glow-pink"></canvas>
+
+        <!-- Main Start / Menu Overlay -->
+        <div id="menuModal" class="absolute inset-0 bg-black/85 backdrop-blur-md flex flex-col items-center justify-center rounded-2xl p-6 text-center z-30 transition-all duration-300">
+            <h2 class="text-3xl sm:text-5xl font-black font-orbitron glow-pink mb-2 tracking-wider">NEON CYBER RUNNER</h2>
+            <p class="text-gray-300 max-w-md text-xs sm:text-sm mb-6">Navigate through hazardous synthwave data corridors, dodge laser anomalies, harvest cyber orbs, and trigger hyper multipliers!</p>
+
+            <!-- Difficulty Settings Select -->
+            <div class="mb-6 w-full max-w-xs">
+                <label class="block text-xs font-orbitron text-cyan-400 mb-2 uppercase tracking-widest">Protocol Difficulty</label>
+                <div class="grid grid-cols-3 gap-2 p-1 bg-slate-900/90 rounded-xl border border-cyan-500/30">
+                    <button onclick="setDifficulty('easy')" id="btn-easy" class="py-2 text-xs font-orbitron font-bold rounded-lg transition-all text-gray-400 hover:text-white">EASY</button>
+                    <button onclick="setDifficulty('medium')" id="btn-medium" class="py-2 text-xs font-orbitron font-bold rounded-lg transition-all text-cyan-400 bg-cyan-950/80 box-glow-cyan">MEDIUM</button>
+                    <button onclick="setDifficulty('hard')" id="btn-hard" class="py-2 text-xs font-orbitron font-bold rounded-lg transition-all text-gray-400 hover:text-white">HARD</button>
+                </div>
+            </div>
+
+            <!-- Start Game Trigger Button -->
+            <button id="startBtn" onclick="startGame()" class="btn-neon-pink font-orbitron font-black text-lg sm:text-xl px-10 py-3.5 rounded-full tracking-wider text-white flex items-center gap-3">
+                <i class="fa-solid fa-play"></i> LAUNCH SYSTEM
+            </button>
+
+            <!-- Control Help Text -->
+            <div class="mt-8 text-xs text-gray-400 flex flex-wrap justify-center gap-6 items-center">
+                <span><i class="fa-solid fa-keyboard mr-1 text-cyan-400"></i> WASD / Arrows to Move</span>
+                <span><i class="fa-solid fa-hand-pointer mr-1 text-pink-400"></i> Touch / Drag on Screen</span>
+            </div>
+        </div>
+
+        <!-- Game Over Modal -->
+        <div id="gameOverModal" class="hidden absolute inset-0 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center rounded-2xl p-6 text-center z-30">
+            <div class="text-red-500 text-4xl sm:text-5xl mb-2 font-black font-orbitron animate-bounce">CRITICAL FAILURE</div>
+            <p class="text-gray-300 font-orbitron text-xs sm:text-sm mb-6">COLLISION DETECTED IN SECTOR 7</p>
+
+            <!-- Final Stats Summary Card -->
+            <div class="bg-slate-900/90 border border-slate-700 rounded-xl p-5 w-full max-w-xs mb-6 font-orbitron space-y-3">
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-400">FINAL SCORE</span>
+                    <span id="finalScore" class="text-cyan-400 font-bold glow-cyan">0</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-400">BEST RECORD</span>
+                    <span id="bestScore" class="text-yellow-400 font-bold glow-yellow">0</span>
+                </div>
+                <div id="newHighTag" class="hidden text-pink-500 font-bold text-xs tracking-widest pt-2 border-t border-slate-800 glow-pink">
+                    ★ NEW HIGH SCORE RECORD ★
+                </div>
+            </div>
+
+            <button onclick="restartGame()" class="btn-neon-pink font-orbitron font-black text-base sm:text-lg px-8 py-3 rounded-full text-white flex items-center gap-2">
+                <i class="fa-solid fa-rotate-right"></i> REBOOT DRIVER
+            </button>
+        </div>
+    </main>
+
+    <!-- Footer Audio & Settings Bar -->
+    <footer class="w-full max-w-4xl z-20 flex justify-between items-center px-4 py-1 text-xs text-gray-500 font-orbitron">
+        <button id="muteBtn" onclick="toggleAudio()" class="hover:text-cyan-400 transition-colors flex items-center gap-2">
+            <i id="audioIcon" class="fa-solid fa-volume-high text-cyan-400"></i> <span id="audioLabel">AUDIO ACTIVE</span>
+        </button>
+        <div class="text-[10px] text-gray-500">CYBER SURGE ENGINE v2.0</div>
+    </footer>
+
+    <script>
+        class AudioSynthEngine {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioCtx();
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            // Synthesizes a high-pitched cyber collectible sound
+            playCollectSound() {
+                if (this.muted || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, this.ctx.currentTime); // D5
+                osc.frequency.exponentialRampToValueAtTime(1174.66, this.ctx.currentTime + 0.12); // D6
+
+                gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.12);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.12);
+            }
+
+            // Synthesizes a low-frequency noise rumble on crash
+            playExplosionSound() {
+                if (this.muted || !this.ctx) return;
+
+                const bufferSize = this.ctx.sampleRate * 0.35;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(900, this.ctx.currentTime);
+                filter.frequency.exponentialRampToValueAtTime(30, this.ctx.currentTime + 0.35);
+
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.5, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.35);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                noise.start();
+                noise.stop(this.ctx.currentTime + 0.35);
+            }
+        }
+
+        const audio = new AudioSynthEngine();
+
+        function toggleAudio() {
+            audio.muted = !audio.muted;
+            const icon = document.getElementById('audioIcon');
+            const label = document.getElementById('audioLabel');
+
+            if (audio.muted) {
+                icon.className = 'fa-solid fa-volume-xmark text-gray-500';
+                label.innerText = 'AUDIO MUTED';
+            } else {
+                icon.className = 'fa-solid fa-volume-high text-cyan-400';
+                label.innerText = 'AUDIO ACTIVE';
+                audio.init();
+            }
+        }
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let isRunning = false;
+        let animationFrameId = null;
+        let score = 0;
+        let multiplier = 1.0;
+        let comboCount = 0;
+        let difficulty = 'medium';
+        let highScore = parseInt(localStorage.getItem('cybersurge_highscore') || '0');
+
+        const difficultySettings = {
+            easy: { spawnRate: 0.035, speedMult: 0.8, orbRate: 0.03 },
+            medium: { spawnRate: 0.05, speedMult: 1.0, orbRate: 0.025 },
+            hard: { spawnRate: 0.075, speedMult: 1.35, orbRate: 0.02 }
+        };
+
+        function resizeCanvas() {
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        const player = {
+            x: 0,
+            y: 0,
+            radius: 16,
+            speed: 7.5,
+            targetX: 0,
+            targetY: 0,
+            trail: [],
+
+            init() {
+                this.x = canvas.width / 2;
+                this.y = canvas.height * 0.8;
+                this.targetX = this.x;
+                this.targetY = this.y;
+                this.trail = [];
+            },
+
+            update() {
+                // Keyboard direction handling
+                if (keys['ArrowLeft'] || keys['KeyA']) this.targetX -= this.speed * 1.3;
+                if (keys['ArrowRight'] || keys['KeyD']) this.targetX += this.speed * 1.3;
+                if (keys['ArrowUp'] || keys['KeyW']) this.targetY -= this.speed * 1.3;
+                if (keys['ArrowDown'] || keys['KeyS']) this.targetY += this.speed * 1.3;
+
+                // Screen Boundary Clamping
+                this.targetX = Math.max(this.radius, Math.min(canvas.width - this.radius, this.targetX));
+                this.targetY = Math.max(this.radius, Math.min(canvas.height - this.radius, this.targetY));
+
+                // Smooth Interpolation
+                this.x += (this.targetX - this.x) * 0.22;
+                this.y += (this.targetY - this.y) * 0.22;
+
+                // Record particle trail
+                this.trail.push({ x: this.x, y: this.y, alpha: 0.7 });
+                if (this.trail.length > 12) this.trail.shift();
+
+                this.trail.forEach(pt => pt.alpha *= 0.85);
+            },
+
+            draw() {
+                // Draw trailing light path
+                for (let i = 0; i < this.trail.length; i++) {
+                    const pt = this.trail[i];
+                    ctx.beginPath();
+                    ctx.arc(pt.x, pt.y, this.radius * (i / this.trail.length), 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(6, 182, 212, ${pt.alpha})`;
+                    ctx.fill();
+                }
+
+                // Render core player vessel
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                ctx.shadowBlur = 18;
+                ctx.shadowColor = '#06b6d4';
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#06b6d4';
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius * 0.5, 0, Math.PI * 2);
+                ctx.fillStyle = '#ffffff';
+                ctx.fill();
+
+                ctx.restore();
+            }
+        };
+
+        const keys = {};
+        window.addEventListener('keydown', e => { keys[e.code] = true; audio.init(); });
+        window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+        let isDragging = false;
+        function handlePointerMove(e) {
+            if (!isRunning) return;
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+            player.targetX = clientX - rect.left;
+            player.targetY = clientY - rect.top;
+        }
+
+        canvas.addEventListener('mousedown', (e) => { isDragging = true; handlePointerMove(e); audio.init(); });
+        canvas.addEventListener('mousemove', (e) => { if (isDragging) handlePointerMove(e); });
+        canvas.addEventListener('mouseup', () => isDragging = false);
+
+        canvas.addEventListener('touchstart', (e) => { isDragging = true; handlePointerMove(e); audio.init(); }, { passive: true });
+        canvas.addEventListener('touchmove', (e) => { if (isDragging) handlePointerMove(e); }, { passive: true });
+        canvas.addEventListener('touchend', () => isDragging = false);
+
+        let particles = [];
+        let obstacles = [];
+        let collectibles = [];
+        let gridOffset = 0;
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.radius = Math.random() * 3 + 1;
+                this.vx = (Math.random() - 0.5) * 8;
+                this.vy = (Math.random() - 0.5) * 8;
+                this.alpha = 1;
+                this.decay = Math.random() * 0.03 + 0.015;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.alpha -= this.decay;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, this.alpha);
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        function spawnBurst(x, y, color, count = 15) {
+            for (let i = 0; i < count; i++) {
+                particles.push(new Particle(x, y, color));
+            }
+        }
+
+        class Obstacle {
+            constructor() {
+                this.radius = Math.random() * 12 + 10;
+                this.x = Math.random() * (canvas.width - this.radius * 2) + this.radius;
+                this.y = -this.radius;
+                const config = difficultySettings[difficulty];
+                this.speed = (Math.random() * 2.5 + 2.5) * config.speedMult;
+                this.color = '#ec4899';
+                this.pulse = 0;
+            }
+
+            update() {
+                this.y += this.speed;
+                this.pulse += 0.06;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.shadowBlur = 12;
+                ctx.shadowColor = this.color;
+
+                const r = this.radius + Math.sin(this.pulse) * 2;
+                ctx.beginPath();
+                ctx.arc(0, 0, r, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(236, 72, 153, 0.25)';
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 3;
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.arc(0, 0, r * 0.4, 0, Math.PI * 2);
+                ctx.fillStyle = '#ffffff';
+                ctx.fill();
+
+                ctx.restore();
+            }
+        }
+
+        class Collectible {
+            constructor() {
+                this.radius = 10;
+                this.x = Math.random() * (canvas.width - this.radius * 2) + this.radius;
+                this.y = -this.radius;
+                this.speed = Math.random() * 1.5 + 2.0;
+                this.color = '#eab308';
+                this.rotation = 0;
+            }
+
+            update() {
+                this.y += this.speed;
+                this.rotation += 0.05;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = this.color;
+
+                ctx.beginPath();
+                ctx.rect(-this.radius, -this.radius, this.radius * 2, this.radius * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+
+                ctx.restore();
+            }
+        }
+
+        function drawBackgroundGrid() {
+            ctx.strokeStyle = 'rgba(6, 182, 212, 0.08)';
+            ctx.lineWidth = 1;
+
+            const gridSize = 40;
+            gridOffset = (gridOffset + 1.5) % gridSize;
+
+            for (let x = 0; x < canvas.width; x += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+
+            for (let y = gridOffset; y < canvas.height; y += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+        }
+
+        function gameLoop() {
+            if (!isRunning) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBackgroundGrid();
+
+            const config = difficultySettings[difficulty];
+            if (Math.random() < config.spawnRate) obstacles.push(new Obstacle());
+            if (Math.random() < config.orbRate) collectibles.push(new Collectible());
+
+            player.update();
+            player.draw();
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.update();
+                p.draw();
+                if (p.alpha <= 0) particles.splice(i, 1);
+            }
+
+            for (let i = collectibles.length - 1; i >= 0; i--) {
+                const orb = collectibles[i];
+                orb.update();
+                orb.draw();
+
+                const dist = Math.hypot(player.x - orb.x, player.y - orb.y);
+                if (dist < player.radius + orb.radius) {
+                    comboCount++;
+                    multiplier = 1 + Math.floor(comboCount / 5) * 0.5;
+                    score += Math.round(100 * multiplier);
+
+                    audio.playCollectSound();
+                    spawnBurst(orb.x, orb.y, '#eab308', 12);
+                    collectibles.splice(i, 1);
+                    updateHUD();
+                } else if (orb.y > canvas.height + orb.radius) {
+                    collectibles.splice(i, 1);
+                }
+            }
+
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                const obs = obstacles[i];
+                obs.update();
+                obs.draw();
+
+                const dist = Math.hypot(player.x - obs.x, player.y - obs.y);
+                if (dist < player.radius + obs.radius * 0.8) {
+                    spawnBurst(player.x, player.y, '#ec4899', 30);
+                    spawnBurst(obs.x, obs.y, '#06b6d4', 20);
+                    audio.playExplosionSound();
+                    endGame();
+                    return;
+                }
+
+                if (obs.y > canvas.height + obs.radius) {
+                    obstacles.splice(i, 1);
+                    score += 10;
+                    updateHUD();
+                }
+            }
+
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        function updateHUD() {
+            document.getElementById('hudScore').innerText = score;
+            document.getElementById('hudHighScore').innerText = highScore;
+            document.getElementById('hudMultiplier').innerText = `x${multiplier.toFixed(1)}`;
+        }
+
+        function setDifficulty(lvl) {
+            difficulty = lvl;
+            ['easy', 'medium', 'hard'].forEach(d => {
+                const btn = document.getElementById(`btn-${d}`);
+                if (d === lvl) {
+                    btn.className = 'py-2 text-xs font-orbitron font-bold rounded-lg transition-all text-cyan-400 bg-cyan-950/80 box-glow-cyan';
+                } else {
+                    btn.className = 'py-2 text-xs font-orbitron font-bold rounded-lg transition-all text-gray-400 hover:text-white';
+                }
+            });
+        }
+
+        function startGame() {
+            audio.init();
+            score = 0;
+            multiplier = 1.0;
+            comboCount = 0;
+            obstacles = [];
+            collectibles = [];
+            particles = [];
+
+            player.init();
+            updateHUD();
+
+            document.getElementById('menuModal').classList.add('hidden');
+            document.getElementById('gameOverModal').classList.add('hidden');
+
+            isRunning = true;
+            gameLoop();
+        }
+
+        function endGame() {
+            isRunning = false;
+            cancelAnimationFrame(animationFrameId);
+
+            let isNewHigh = false;
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('cybersurge_highscore', highScore.toString());
+                isNewHigh = true;
+            }
+
+            document.getElementById('finalScore').innerText = score;
+            document.getElementById('bestScore').innerText = highScore;
+
+            const newHighTag = document.getElementById('newHighTag');
+            if (isNewHigh) {
+                newHighTag.classList.remove('hidden');
+            } else {
+                newHighTag.classList.add('hidden');
+            }
+
+            document.getElementById('gameOverModal').classList.remove('hidden');
+        }
+
+        function restartGame() {
+            startGame();
+        }
+
+        document.getElementById('hudHighScore').innerText = highScore;
+    </script>
+</body>
+</html>
